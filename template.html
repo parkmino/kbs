@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KBS 1FM 실시간 플레이어</title>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <style>
+        body { font-family: 'Malgun Gothic', sans-serif; background-color: #f4f6f9; color: #333; margin: 0; padding: 40px 20px; display: flex; justify-content: center; }
+        .container { background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 500px; width: 100%; text-align: center; }
+        h1 { font-size: 24px; color: #0056b3; margin-bottom: 5px; }
+        .subtitle { color: #666; font-size: 14px; margin-bottom: 25px; }
+        audio { width: 100%; margin: 20px 0; }
+        .btn-box { margin-top: 25px; }
+        .btn { display: block; padding: 12px; background-color: #007bff; color: white; text-decoration: none; border-radius: 6px; font-weight: bold; transition: background 0.2s; }
+        .btn:hover { background-color: #0056b3; }
+        .info-box { background: #f8f9fa; padding: 15px; border-radius: 6px; font-size: 12px; text-align: left; margin-top: 25px; word-break: break-all; border-left: 4px solid #007bff; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>📻 KBS 1FM 실시간 웹 플레이어</h1>
+    <div class="subtitle">GitHub Pages 자동 업데이트 버전</div>
+
+    <audio id="audio" controls autoplay></audio>
+
+    <div class="btn-box">
+        <a href="kbs1fm.pls" class="btn" download>⬇️ PLS 파일 다운로드 (PC 플레이어용)</a>
+    </div>
+
+    <div class="info-box">
+        <strong>💡 외부 플레이어(VLC, 팟플레이어 등) 주소 추가용 URL:</strong><br>
+        <span id="pls-url" style="color:#d9534f; font-weight:bold;">로딩 중...</span>
+        <br><br>
+        <strong>🔗 현재 추출된 원본 주소 (m3u8):</strong><br>
+        <span style="color:#555;">{{STREAM_URL}}</span>
+    </div>
+</div>
+
+<script>
+    // 현재 접속한 도메인을 기반으로 PLS 주소 자동 생성 표시
+    document.getElementById('pls-url').innerText = window.location.origin + window.location.pathname.replace('index.html', '') + 'kbs1fm.pls';
+
+    // HLS.js를 사용하여 웹 브라우저에서 KBS m3u8 스트리밍 재생
+    const audio = document.getElementById('audio');
+    const streamUrl = "{{STREAM_URL}}";
+
+    if (Hls.isSupported()) {
+        const hls = new Hls();
+        hls.loadSource(streamUrl);
+        hls.attachMedia(audio);
+    } else if (audio.canPlayType('application/vnd.apple.mpegurl')) {
+        audio.src = streamUrl;
+    }
+</script>
+
+</body>
+</html>
