@@ -3,56 +3,102 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KBS 1FM 실시간 플레이어</title>
+    <title>KBS 통합 실시간 플레이어</title>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
-        body { font-family: 'Malgun Gothic', sans-serif; background-color: #f4f6f9; color: #333; margin: 0; padding: 40px 20px; display: flex; justify-content: center; }
-        .container { background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 500px; width: 100%; text-align: center; }
-        h1 { font-size: 24px; color: #0056b3; margin-bottom: 5px; }
-        .subtitle { color: #666; font-size: 14px; margin-bottom: 25px; }
-        audio { width: 100%; margin: 20px 0; }
+        body { font-family: 'Malgun Gothic', sans-serif; background-color: #f4f6f9; color: #333; margin: 0; padding: 20px; display: flex; justify-content: center; }
+        .container { background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 600px; width: 100%; text-align: center; }
+        h1 { font-size: 24px; color: #0056b3; margin-bottom: 20px; }
+        select { width: 100%; padding: 10px; font-size: 16px; margin-bottom: 20px; border-radius: 6px; border: 1px solid #ccc; }
+        video { width: 100%; background: #000; border-radius: 6px; }
         .btn-box { margin-top: 25px; }
         .btn { display: block; padding: 12px; background-color: #007bff; color: white; text-decoration: none; border-radius: 6px; font-weight: bold; transition: background 0.2s; }
         .btn:hover { background-color: #0056b3; }
+        .btn-disabled { background-color: #ccc; pointer-events: none; }
         .info-box { background: #f8f9fa; padding: 15px; border-radius: 6px; font-size: 12px; text-align: left; margin-top: 25px; word-break: break-all; border-left: 4px solid #007bff; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>📻 KBS 1FM 실시간 웹 플레이어</h1>
-    <div class="subtitle">GitHub Pages 자동 업데이트 버전</div>
+    <h1>📺 KBS 통합 실시간 플레이어</h1>
+    
+    <select id="channel-selector">
+        <option value="">채널을 선택하세요</option>
+    </select>
 
-    <audio id="audio" controls autoplay></audio>
+    <video id="video" controls autoplay></video>
 
     <div class="btn-box">
-        <a href="kbs1fm.pls" class="btn" download>⬇️ PLS 파일 다운로드 (PC 플레이어용)</a>
+        <a id="pls-download" href="#" class="btn btn-disabled" download>⬇️ 현재 채널 PLS 파일 다운로드</a>
     </div>
 
     <div class="info-box">
-        <strong>💡 외부 플레이어(VLC, 팟플레이어 등) 주소 추가용 URL:</strong><br>
-        <span id="pls-url" style="color:#d9534f; font-weight:bold;">로딩 중...</span>
+        <strong>💡 외부 플레이어(VLC, 팟플레이어) 주소 추가용 개별 URL:</strong><br>
+        <span id="pls-url" style="color:#d9534f; font-weight:bold;">채널을 선택해주세요.</span>
         <br><br>
-        <strong>🔗 현재 추출된 원본 주소 (m3u8):</strong><br>
-        <span style="color:#555;">https://1fm.gscdn.kbs.co.kr/1fm_192_2.m3u8?Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly8xZm0uZ3NjZG4ua2JzLmNvLmtyLyoiLCJDb25kaXRpb24iOnsiRGF0ZUxlc3NUaGFuIjp7IkFXUzpFcG9jaFRpbWUiOjE3ODIwMjcyMjB9fX1dfQ__{{STREAM_URL}}Key-Pair-Id=APKAICDSGT3Y7IXGJ3TA{{STREAM_URL}}Signature=V6EQ9wEM~ss4MHrastyuNgxn2YcYcFzlKINqyR~3xfSqsotnKz~oNQmmpHMRUtXlx4s89pK9dX-HRik6WMD0Ytua7NgwpPsuRzkU7~oYPdCzE9kbu3m0kRsdH7Xn21zMvV8QjuMJG4IPAdIGPKrHJcQRxErlbPC7Cl~Z0nOKYgbE4pd8pvUIZShwCMHYWvlvbJS51ZCbM9zsuV9lTLLpAnAGCbvISdjUCoo7uofnh4bQguypavCLQRC~rbOVERE0in4hnZ-4Ftt82V6upGz9D2dPJnc-n1xrONAweng6LcQoAr3YK3mpoRqyFTyvEYgrmiggdUTU7LjtfG22xtmSXA__</span>
+        <strong>🔗 현재 선택된 채널 원본 주소 (m3u8):</strong><br>
+        <span id="stream-url-text" style="color:#555;">채널을 선택해주세요.</span>
     </div>
 </div>
 
 <script>
-    // 현재 접속한 도메인을 기반으로 PLS 주소 자동 생성 표시
-    document.getElementById('pls-url').innerText = window.location.origin + window.location.pathname.replace('index.html', '') + 'kbs1fm.pls';
+    const channelData = {"1tv":"https://padmin.static.kbs.co.kr/live/2025/2/3/1738538621612_433742.png","2tv":"https://padmin.static.kbs.co.kr/live/2025/2/3/1738538621669_433753.png","world":"https://padmin.static.kbs.co.kr/live/2025/2/3/1738538621754_433764.png","news_d":"https://padmin.static.kbs.co.kr/live/2025/3/21/1742522477055_445256.png","drama":"https://padmin.static.kbs.co.kr/live/2025/3/11/1741700048773_443879.png","joy":"https://padmin.static.kbs.co.kr/live/2025/3/11/1741700048850_443880.png","life":"https://padmin.static.kbs.co.kr/live/2025/3/11/1741700049056_443904.png","story":"https://padmin.static.kbs.co.kr/live/2025/3/11/1741700048990_443891.png","kids":"https://padmin.static.kbs.co.kr/live/2025/3/11/1741700049148_443915.png","1":"https://padmin.static.kbs.co.kr/live/2025/3/7/1741313605388_442801.png","2":"https://padmin.static.kbs.co.kr/live/2025/3/7/1741313605462_442812.png","3":"https://padmin.static.kbs.co.kr/live/2025/3/7/1741313605540_442823.png","4":"https://padmin.static.kbs.co.kr/live/2025/3/7/1741313605624_442834.png","5":"https://padmin.static.kbs.co.kr/live/2025/3/7/1741313605728_442845.png","6":"https://padmin.static.kbs.co.kr/live/2025/3/7/1741313605812_442856.png","7":"https://padmin.static.kbs.co.kr/live/2025/3/7/1741313605870_442867.png","8":"https://padmin.static.kbs.co.kr/live/2025/3/7/1741313605956_442878.png","9":"https://padmin.static.kbs.co.kr/live/2025/3/7/1741313606035_442889.png","0":"https://padmin.static.kbs.co.kr/live/2025/3/7/1741313606103_442890.png","1fm":"https://1fm.gscdn.kbs.co.kr/1fm_192_2.m3u8?Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly8xZm0uZ3NjZG4ua2JzLmNvLmtyLyoiLCJDb25kaXRpb24iOnsiRGF0ZUxlc3NUaGFuIjp7IkFXUzpFcG9jaFRpbWUiOjE3ODIwMzkwMTd9fX1dfQ__{{CHANNELS_JSON}}Key-Pair-Id=APKAICDSGT3Y7IXGJ3TA{{CHANNELS_JSON}}Signature=AtRotkHal3BfHGE-MsKvm2RVCQQQP90pj0j7unlvSGj0FXvSHB9Ily58CqYzKvRFvQfAYPfLaHic3xIfNC-a8ubO9FYaPvnhCOoIxOM5rIA848W4qnnwWeHuVdCZyxuy2S011Ve6hJ-UhNWpV1Mr8HfZ0xz3hWOkfctRMgSM6BBzrCFfF8WV-ZrrNpgAIYRhpH9r49vnZ9yRRc01CYLz00StSQG4ZTd01iiT2YCRanbLkVUx8H4cQUoJrhcbueI59kFY0x97xQ5cTBXPzrruEplxefT3Np513Y2x-E9OxvJiSgOJ~VgiI0Q~mao5dBRSFo3BB4YdEQPLeq2KfnYudA__","2fm":"https://2fm-ad.gscdn.kbs.co.kr/2fm_ad_192_1.m3u8?Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly8yZm0tYWQuZ3NjZG4ua2JzLmNvLmtyLyoiLCJDb25kaXRpb24iOnsiRGF0ZUxlc3NUaGFuIjp7IkFXUzpFcG9jaFRpbWUiOjE3ODIwMzkwMDl9fX1dfQ__{{CHANNELS_JSON}}Key-Pair-Id=APKAICDSGT3Y7IXGJ3TA{{CHANNELS_JSON}}Signature=fb3HQLHGnvSeuOim2idCt0rJbAXmPKmd9IO72FXnE~ZfgWv3anzEbbwQPAgBlMRBtGYvHVqCazFoWi-zpUhD04bjpYZtLJOdae95JoHfsYWWgphKcubkkxqM3I~ppKd0WZaDu8TYnZnFNmBhQp4mcudLVxtYVBRxGv3CW1pyadjDSpXEM~QQoTAPzcnWLgdYwM8xod3DiI3UE8c8SZ9ftQq7i8lauXK0aLTAKM2Fq59UVgXe28CVTjAFMMZkG~YXyxQV73hXKYfjMkKdcasa2s5wbkqgclLItIgcmexH9~FZlcPv1eav~ZmsJyURA0fr9ZLUir9Tx4kC0bmUcPZRTQ__","1r":"https://1radio.gscdn.kbs.co.kr/1radio_192_4.m3u8?Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly8xcmFkaW8uZ3NjZG4ua2JzLmNvLmtyLyoiLCJDb25kaXRpb24iOnsiRGF0ZUxlc3NUaGFuIjp7IkFXUzpFcG9jaFRpbWUiOjE3ODIwMzkwNTF9fX1dfQ__{{CHANNELS_JSON}}Key-Pair-Id=APKAICDSGT3Y7IXGJ3TA{{CHANNELS_JSON}}Signature=KhjRgt4SuYSKrTJWFa0QY7MzICSoqJWLXhOmUPl44dcXdHeU7FcVR4E5oTT7b7AF5Mp8VhYsPDG4z4PSNnuTJEKW0uWWRAXloTSreAT3tX4~asRhY761nGK6kJPWxDcnvqthd4GVOYaO~C6owJdE0fAiiwFPTk~Wb1r72DG5kL9popcFX40ZvQtIOIDeAkNh7LNbvyfZvnZmNT0GtvjPBeyq9HtF04uMbChwc~9BxyrEUsiGH8pkZe1q6u2Mm3PaHXqUncMLIEeFxBDDpxDv~UwhgH3lGjEChei2~ucYcDyrBaMWSsiQBf2r4WkYPXlyXXODXC72VobwC5l27I5IYg__","2r":"https://2radio-ad.gscdn.kbs.co.kr/2radio_ad_192_1.m3u8?Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly8ycmFkaW8tYWQuZ3NjZG4ua2JzLmNvLmtyLyoiLCJDb25kaXRpb24iOnsiRGF0ZUxlc3NUaGFuIjp7IkFXUzpFcG9jaFRpbWUiOjE3ODIwMzkwNDZ9fX1dfQ__{{CHANNELS_JSON}}Key-Pair-Id=APKAICDSGT3Y7IXGJ3TA{{CHANNELS_JSON}}Signature=mL0ttX6MCBlkcLrrVmOWAPr9vpTExlsw7b~0E1jWklaN6OKFC2DcvFgWmkNUMurmCKH1WoJe69~5~v8kyRRLz2UQQYERHmtd4UnrGKb5IQcRQaaXbs8o6oGjtfRCqNEG-Q30xMJJ15t0SN0dBqySfu8o3VkMYRHKiItnc5rKGj8-CZpdDrl3kLpDBhd3eMWpWMl~kU4UcdPcGdAjNcskvk8OhWVsfmse5R66QGjQ99d56rIS3vyW4ncpKZqe0HUJh89e5AzWjKp2TtGATdnYdhZiaacrm4wpbJjHFejX36mwBfVwj1Z3o60~HqDPbUE8Li1DPsQJux94Kv1UvfG05A__","3r":"https://3radio.gscdn.kbs.co.kr/3radio_192_3.m3u8?Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly8zcmFkaW8uZ3NjZG4ua2JzLmNvLmtyLyoiLCJDb25kaXRpb24iOnsiRGF0ZUxlc3NUaGFuIjp7IkFXUzpFcG9jaFRpbWUiOjE3ODIwMzkwNTN9fX1dfQ__{{CHANNELS_JSON}}Key-Pair-Id=APKAICDSGT3Y7IXGJ3TA{{CHANNELS_JSON}}Signature=fz0oWtfvCPzolfB~IEIcMIsCBn1-bdsEhWw~ECU08tPaNdFWFM-ndqyfe1ZJzOF~2Fx0~PytPB2nmZC4Vk2JlPFBHwpPScvH71ZtTBjPjACosZICClYCyCNGIILcBJSbKmjZCnsKypuaA7Xf7fbJuUzSB7VEdyYVThaQL2sEoIcc6DMwPkpGisWquA98GfGASz~xM8nuLRFCQaC8XMNJ3Qg7zCzVyeWfGvdAvmpaYiTBM-a~xI~u5I1lOLzycFYzjPVulSKkLT8PdggwWlo8ue1Eer5LVHn1MV9h8jPwhI0sMa3v7Am4RKgJ8JmrwReubLGQJyyU32o9P91kBSSBag__","han":"https://hanminjokradio.gscdn.kbs.co.kr/hanminjokradio_192_2.m3u8?Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly9oYW5taW5qb2tyYWRpby5nc2Nkbi5rYnMuY28ua3IvKiIsIkNvbmRpdGlvbiI6eyJEYXRlTGVzc1RoYW4iOnsiQVdTOkVwb2NoVGltZSI6MTc4MjAzOTA0NX19fV19{{CHANNELS_JSON}}Key-Pair-Id=APKAICDSGT3Y7IXGJ3TA{{CHANNELS_JSON}}Signature=gGsEJjWd60z68DdNapH1LyCtbxXxm8K9uRE~xjEVHwIUx6Qo27AUrE7ACd-bWGybTkcALnTpUxk88U0kjjmjVkoveHj8AbnWmT6dZCRvTeEDcaBoLFJl9Rggmh17EAiqzJV3SpcmSRazjCs4GMFpGIeUrQLdFeKTpou1lw61AdmdBuPBVjKBXrS1nmsQAOn6Z0jDh56-tBc~QBLs2FnH1QbQj51oXuC4p5-w8TuzoFBtVjC-4veO34azBH8mEVuuR1SFl6iZzGUP3pAfTeb1bJndQt7FyrIFNPI7AZUHw6rp~5eExtP3pwBNjR~bO2rW9Fi7XeB9Jr~qzilhTyupsw__","mul":"https://wink11.gscdn.kbs.co.kr/ch1_64_2.m3u8?Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly93aW5rMTEuZ3NjZG4ua2JzLmNvLmtyLyoiLCJDb25kaXRpb24iOnsiRGF0ZUxlc3NUaGFuIjp7IkFXUzpFcG9jaFRpbWUiOjE3ODIwMzkwNDd9fX1dfQ__{{CHANNELS_JSON}}Key-Pair-Id=APKAICDSGT3Y7IXGJ3TA{{CHANNELS_JSON}}Signature=NMK6s1zLQ6aScJz~ZEGaMnp3W3x3q4NKuyv3ZwgFqqc66~c-u54-kiMukl~ZYCcGmXj0SjcbfpUVu2dqeeYNjkwwaXk4J7whCy2riEsNRd3pxBRE2vHtStixwwWSZlmiPGMakadZA-3S7qNfuSsgyz5brsZPM9J2lR8T5ofV6aoYBa1HG1x8jPnH3iQLjfHQs0IDYSiAIoRSDSsHcStsQtpWRbT8hcGp3-6-TRn5IEYkA-3C0XAy6oMrxN-gyN3yxNhxPwr6mE1kxJFtGT-dcGwh5QjmVJgVma6lXDSPVUzLGyu~v5mzlBr1LQfW2~tY89GZEA2DSLDUy~ji9YVfYA__","eng":"https://worldradio.gscdn.kbs.co.kr/worldradio_192_4.m3u8?Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly93b3JsZHJhZGlvLmdzY2RuLmticy5jby5rci8qIiwiQ29uZGl0aW9uIjp7IkRhdGVMZXNzVGhhbiI6eyJBV1M6RXBvY2hUaW1lIjoxNzgyMDM5MDA5fX19XX0_{{CHANNELS_JSON}}Key-Pair-Id=APKAICDSGT3Y7IXGJ3TA{{CHANNELS_JSON}}Signature=iWdndp1dbRCo4L6uHEND38qvsAiVQpZKIQWWBupBjWd0hFf3LptH5c~ZCvi7tLUjiXLwVX7AV8t9sbbxCCR4Jlug-W6yHQ-iKd9PA0HidDtAN0qmTXW3f~SpQI-YO19LbAnWUoH7l1tC2ot7L~EbxdSCNoxAjPOyFS7y7lYaRJLMPHy3wb8IJt5rmzH7xMWIN4BDso7ZgunZqyC7rsb7IzIw0U5Sn46hHg5SW80gjuRMpgrAwj~W~WoYODuhPyeO7TIH~9T0yHucwhlivIq~s0gUJtzTJPnvLy-Gv0xtslJ5~1MF0Ove9FhjUqAMjZdLcLS2FjqsFdgtRT9W7bd1Yg__"}};
+    
+    const selector = document.getElementById('channel-selector');
+    const video = document.getElementById('video');
+    const streamUrlText = document.getElementById('stream-url-text');
+    const plsDownload = document.getElementById('pls-download');
+    const plsUrlText = document.getElementById('pls-url');
+    let hls;
 
-    // HLS.js를 사용하여 웹 브라우저에서 KBS m3u8 스트리밍 재생
-    const audio = document.getElementById('audio');
-    const streamUrl = "https://1fm.gscdn.kbs.co.kr/1fm_192_2.m3u8?Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly8xZm0uZ3NjZG4ua2JzLmNvLmtyLyoiLCJDb25kaXRpb24iOnsiRGF0ZUxlc3NUaGFuIjp7IkFXUzpFcG9jaFRpbWUiOjE3ODIwMjcyMjB9fX1dfQ__{{STREAM_URL}}Key-Pair-Id=APKAICDSGT3Y7IXGJ3TA{{STREAM_URL}}Signature=V6EQ9wEM~ss4MHrastyuNgxn2YcYcFzlKINqyR~3xfSqsotnKz~oNQmmpHMRUtXlx4s89pK9dX-HRik6WMD0Ytua7NgwpPsuRzkU7~oYPdCzE9kbu3m0kRsdH7Xn21zMvV8QjuMJG4IPAdIGPKrHJcQRxErlbPC7Cl~Z0nOKYgbE4pd8pvUIZShwCMHYWvlvbJS51ZCbM9zsuV9lTLLpAnAGCbvISdjUCoo7uofnh4bQguypavCLQRC~rbOVERE0in4hnZ-4Ftt82V6upGz9D2dPJnc-n1xrONAweng6LcQoAr3YK3mpoRqyFTyvEYgrmiggdUTU7LjtfG22xtmSXA__";
-
-    if (Hls.isSupported()) {
-        const hls = new Hls();
-        hls.loadSource(streamUrl);
-        hls.attachMedia(audio);
-    } else if (audio.canPlayType('application/vnd.apple.mpegurl')) {
-        audio.src = streamUrl;
+    // 드롭다운 메뉴 채우기
+    for (const [name, url] of Object.entries(channelData)) {
+        const option = document.createElement('option');
+        // value를 채널 이름(key)으로 설정하여 pls 파일 이름과 매칭되게 합니다.
+        option.value = name;
+        option.textContent = name.toUpperCase();
+        selector.appendChild(option);
     }
+
+    // 베이스 URL 계산
+    const baseUrl = window.location.origin + window.location.pathname.replace('index.html', '');
+
+    selector.addEventListener('change', (event) => {
+        const channelName = event.target.value;
+        
+        if (!channelName) {
+            video.pause();
+            streamUrlText.innerText = "채널을 선택해주세요.";
+            plsUrlText.innerText = "채널을 선택해주세요.";
+            plsDownload.classList.add('btn-disabled');
+            plsDownload.href = "#";
+            return;
+        }
+
+        const streamUrl = channelData[channelName];
+        const plsFileName = `kbs_${channelName}.pls`;
+
+        // 텍스트 및 링크 업데이트
+        streamUrlText.innerText = streamUrl;
+        plsUrlText.innerText = baseUrl + plsFileName;
+        plsDownload.href = plsFileName;
+        plsDownload.classList.remove('btn-disabled');
+
+        // HLS.js를 통한 재생
+        if (Hls.isSupported()) {
+            if (hls) { hls.destroy(); }
+            hls = new Hls();
+            hls.loadSource(streamUrl);
+            hls.attachMedia(video);
+            hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                video.play();
+            });
+        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+            video.src = streamUrl;
+            video.play();
+        }
+    });
 </script>
 
 </body>
