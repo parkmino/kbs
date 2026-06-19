@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KBS 통합 실시간 플레이어</title>
+    <title>한국 통합 라디오 플레이어</title>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
         body { font-family: 'Malgun Gothic', sans-serif; background-color: #f4f6f9; color: #333; margin: 0; padding: 20px; display: flex; justify-content: center; }
         .container { background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 600px; width: 100%; text-align: center; }
         h1 { font-size: 24px; color: #0056b3; margin-bottom: 20px; }
-        select { width: 100%; padding: 10px; font-size: 16px; margin-bottom: 20px; border-radius: 6px; border: 1px solid #ccc; }
-        video { width: 100%; background: #000; border-radius: 6px; }
-        .btn-box { margin-top: 25px; }
+        select { width: 100%; padding: 10px; font-size: 16px; margin-bottom: 20px; border-radius: 6px; border: 1px solid #ccc; background-color: #fff; }
+        video { width: 100%; height: 50px; background: #222; border-radius: 6px; margin-bottom: 10px; }
+        .btn-box { margin-top: 15px; }
         .btn { display: block; padding: 12px; background-color: #007bff; color: white; text-decoration: none; border-radius: 6px; font-weight: bold; transition: background 0.2s; }
         .btn:hover { background-color: #0056b3; }
         .btn-disabled { background-color: #ccc; pointer-events: none; }
@@ -21,28 +21,29 @@
 <body>
 
 <div class="container">
-    <h1>📺 KBS 통합 실시간 플레이어</h1>
+    <h1>📻 한국 통합 라디오 플레이어</h1>
     
     <select id="channel-selector">
-        <option value="">채널을 선택하세요</option>
+        <option value="">듣고 싶은 채널을 선택하세요</option>
     </select>
 
     <video id="video" controls autoplay></video>
 
     <div class="btn-box">
-        <a id="pls-download" href="#" class="btn btn-disabled" download>⬇️ 현재 채널 PLS 파일 다운로드</a>
+        <a id="pls-download" href="#" class="btn btn-disabled" download>⬇️ 현재 채널 PLS 다운로드 (PC용)</a>
     </div>
 
     <div class="info-box">
-        <strong>💡 외부 플레이어(VLC, 팟플레이어) 주소 추가용 개별 URL:</strong><br>
+        <strong>💡 외부 플레이어(VLC, 팟플레이어 등) 고정 주소:</strong><br>
         <span id="pls-url" style="color:#d9534f; font-weight:bold;">채널을 선택해주세요.</span>
         <br><br>
-        <strong>🔗 현재 선택된 채널 원본 주소 (m3u8):</strong><br>
+        <strong>🔗 현재 원본 주소 (m3u8/aac):</strong><br>
         <span id="stream-url-text" style="color:#555;">채널을 선택해주세요.</span>
     </div>
 </div>
 
 <script>
+    // GitHub Action에서 생성된 JSON 데이터 (id: {name, url})
     const channelData = {{CHANNELS_JSON}};
     
     const selector = document.getElementById('channel-selector');
@@ -53,21 +54,19 @@
     let hls;
 
     // 드롭다운 메뉴 채우기
-    for (const [name, url] of Object.entries(channelData)) {
+    for (const [id, data] of Object.entries(channelData)) {
         const option = document.createElement('option');
-        // value를 채널 이름(key)으로 설정하여 pls 파일 이름과 매칭되게 합니다.
-        option.value = name;
-        option.textContent = name.toUpperCase();
+        option.value = id;
+        option.textContent = data.name;
         selector.appendChild(option);
     }
 
-    // 베이스 URL 계산
     const baseUrl = window.location.origin + window.location.pathname.replace('index.html', '');
 
     selector.addEventListener('change', (event) => {
-        const channelName = event.target.value;
+        const channelId = event.target.value;
         
-        if (!channelName) {
+        if (!channelId) {
             video.pause();
             streamUrlText.innerText = "채널을 선택해주세요.";
             plsUrlText.innerText = "채널을 선택해주세요.";
@@ -76,25 +75,26 @@
             return;
         }
 
-        const streamUrl = channelData[channelName];
-        const plsFileName = `kbs_${channelName}.pls`;
+        const channelInfo = channelData[channelId];
+        const streamUrl = channelInfo.url;
+        const plsFileName = `${channelId}.pls`;
 
-        // 텍스트 및 링크 업데이트
+        // UI 텍스트 및 링크 업데이트
         streamUrlText.innerText = streamUrl;
         plsUrlText.innerText = baseUrl + plsFileName;
         plsDownload.href = plsFileName;
         plsDownload.classList.remove('btn-disabled');
 
-        // HLS.js를 통한 재생
-        if (Hls.isSupported()) {
+        // 재생 로직
+        if (Hls.isSupported() && streamUrl.includes('.m3u8')) {
             if (hls) { hls.destroy(); }
             hls = new Hls();
             hls.loadSource(streamUrl);
             hls.attachMedia(video);
-            hls.on(Hls.Events.MANIFEST_PARSED, function() {
-                video.play();
-            });
-        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+            hls.on(Hls.Events.MANIFEST_PARSED, function() { video.play(); });
+        } else {
+            // HLS 미지원 환경이거나 일반 aac/mp3 스트리밍인 경우
+            if (hls) { hls.destroy(); }
             video.src = streamUrl;
             video.play();
         }
