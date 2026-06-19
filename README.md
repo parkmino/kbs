@@ -1,1 +1,1 @@
-KBS Classic FM
+KBS TV & Radio
