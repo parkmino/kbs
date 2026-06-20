@@ -2,7 +2,7 @@ name: Update Radio Stream URLs
 
 on:
   schedule:
-    - cron: '*/5 * * * *' # 5분마다 실행
+    - cron: '*/5 * * * *'
   workflow_dispatch:
 
 permissions:
@@ -15,9 +15,8 @@ jobs:
     - name: Checkout Repository
       uses: actions/checkout@v5
 
-    - name: Fetch URLs and Generate PLS Files
+    - name: Fetch URLs and Generate Files
       run: |
-        # 채널 설정 배열 정의 ("식별자:방송사:API인자1:API인자2:표시이름")
         CHANNELS=(
           "1fm:kbs:24::KBS 1FM (Classic)"
           "2fm:kbs:25::KBS 2FM (Cool)"
@@ -35,61 +34,52 @@ jobs:
           "sbsg:sbs:sbsdmbpc:sbsdmb:SBS 고릴라M"
         )
         
-        # 이전 데이터 정리를 위해 기존 pls 파일 일괄 삭제
+        # 기존 pls 파일 정리
         rm -f *.pls
         
         JSON_DATA="{"
         
         for ch in "${CHANNELS[@]}"; do
-          # ':' 구분자로 문자열 자르기
           IFS=":" read -r id type arg1 arg2 name <<< "$ch"
           URL=""
           
-          # 1. 방송사별 주소 추출 로직
           if [ "$type" == "kbs" ]; then
             URL=$(curl -s "https://cfpwwwapi.kbs.co.kr/api/v1/landing/live/channel_code/$arg1" | grep -o 'http[^"]*' | head -n 1 | sed 's/\\//g')
-          
           elif [ "$type" == "mbc" ]; then
             URL=$(curl -s "https://sminiplay.imbc.com/aacplay.ashx?agent=webapp&channel=$arg1" | grep -o 'http[^"]*' | head -n 1)
-          
           elif [ "$type" == "sbs" ]; then
-            # SBS API는 JSON을 반환하므로 http 주소만 파싱
             URL=$(curl -s "https://apis.sbs.co.kr/play-api/1.0/livestream/$arg1/$arg2?protocol=hls&ssl=Y" | grep -o 'http[^"]*' | head -n 1 | sed 's/\\//g')
           fi
           
-          # 특수문자(줄바꿈 등) 제거
+          # 공백 및 줄바꿈 제거
           URL=$(echo "$URL" | tr -d '\r\n')
           
-          # 2. 파일 및 JSON 생성
           if [ -n "$URL" ]; then
             echo "✅ $name ($id) 추출 완료"
-            
-            # 개별 PLS 파일 생성 (예: 1fm.pls, mbcfm.pls)
             echo -e "[playlist]\nFile1=$URL\nTitle1=$name\nLength1=-1\nNumberOfEntries=1\nVersion=2" > "${id}.pls"
-            
-            # JSON 데이터 덧붙이기
             JSON_DATA+="\"$id\":{\"name\":\"$name\",\"url\":\"$URL\"},"
           else
             echo "❌ $name ($id) 주소를 찾을 수 없음"
           fi
           
-          # 서버 요청 과부하 방지
           sleep 0.5
         done
         
-        # 마지막 콤마 제거 후 JSON 닫기
         JSON_DATA="${JSON_DATA%,}}"
         JSON_DATA+="}"
         
-        # template.html 치환
-        sed "s|{{CHANNELS_JSON}}|$JSON_DATA|g" template.html > index.html
+        # HTML을 건드리지 않고, 순수 데이터만 channels.json으로 저장
+        echo "$JSON_DATA" > channels.json
 
     - name: Commit and Push Changes
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
         
-        git add *.pls index.html
+        # 예전 방식의 잔재(template.html)가 남아있다면 깔끔하게 삭제
+        rm -f template.html
+        
+        git add *.pls channels.json
         git add -u
         
-        git diff --quiet && git diff --staged --quiet || (git commit -m "정기 업데이트: 방송 3사 라디오 URL 최신화" && git push)
+        git diff --quiet && git diff --staged --quiet || (git commit -m "정기 업데이트: channels.json 및 PLS 갱신" && git push)
